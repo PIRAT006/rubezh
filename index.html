@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>РУБЕЖ — 3D тактическая стратегия</title>
+<link rel="stylesheet" href="css/style.css">
+<script>
+window.__earlyErrors = [];
+window.onerror = function(msg, url, line, col, err) {
+  var s = msg + ' @ ' + (url ? url.split('/').pop() : '') + ':' + line + ':' + col;
+  window.__earlyErrors.push(s);
+  document.title = 'ERROR: ' + s;
+};
+</script>
+</head>
+<body>
+
+<canvas id="gl"></canvas>
+<canvas id="fx"></canvas>
+
+<!-- ======================= HUD ======================= -->
+<div id="hud" class="hidden">
+
+  <div id="topbar">
+    <div class="tb-block tb-left">
+      <div class="res">
+        <span class="res-label">Снабжение</span>
+        <span class="res-value" id="res">0</span>
+        <span class="res-inc" id="inc">+0/с</span>
+      </div>
+      <div class="res res-mini">
+        <span class="res-label">Лимит</span>
+        <span class="res-value" id="cap">0 / 0</span>
+      </div>
+    </div>
+
+    <div class="tb-block tb-mid">
+      <div class="objective"><i class="dot"></i><span id="objective">УНИЧТОЖИТЬ ШТАБ ПРОТИВНИКА</span></div>
+      <div class="sub-objective" id="sub-objective">Захватывайте опорные пункты — они дают снабжение</div>
+    </div>
+
+    <div class="tb-block tb-right">
+      <div class="clock" id="clock">00:00</div>
+      <div class="tb-btns">
+        <button class="icon-btn" id="btn-pause" title="Пауза (P)">II</button>
+        <button class="icon-btn wide" id="btn-speed" title="Скорость игры (T)">1×</button>
+        <button class="icon-btn" id="btn-sound" title="Звук (M)">♪</button>
+        <button class="icon-btn" id="btn-help" title="Управление (F1)">?</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="left-stack">
+    <div id="minimap-wrap">
+      <canvas id="minimap" width="256" height="256"></canvas>
+      <div class="mm-frame"></div>
+      <div class="mm-label">Тактическая карта</div>
+    </div>
+    <div id="points"></div>
+    <div id="buildbar">
+      <div class="bb-title">Развёртывание</div>
+      <div id="build-cards"></div>
+    </div>
+  </div>
+
+  <div id="log"></div>
+
+  <div id="selbar">
+    <div id="sel-head">
+      <div id="sel-title">Нет выделения</div>
+      <div id="sel-sub"></div>
+    </div>
+    <div id="sel-body">
+      <div id="sel-cards"></div>
+      <div id="actions"></div>
+    </div>
+  </div>
+
+  <div id="hint" class="hidden"></div>
+  <div id="tooltip" class="hidden"></div>
+  <div id="cursor-hint" class="hidden"></div>
+  <div id="selrect"></div>
+  <div id="toast"></div>
+</div>
+
+<!-- ======================= MENU ======================= -->
+<div id="menu">
+  <div class="menu-bg"></div>
+  <div class="menu-grid"></div>
+  <div class="menu-inner">
+    <div class="menu-kicker">Оперативное командование · сектор «Северный рубеж»</div>
+    <h1 class="menu-title">РУБЕЖ</h1>
+    <div class="menu-sub">3D-стратегия в реальном времени о современной войне</div>
+
+    <div class="menu-cols">
+      <div class="menu-col">
+        <div class="panel-title">Вводная</div>
+        <p class="brief">
+          Противник занял северный берег и перерезал снабжение. В вашем распоряжении —
+          сводная группировка <b>«Союз»</b>: мотострелки, бронетехника, артиллерия,
+          расчёты ПВО и дроны. Удержите опорные пункты, накопите силы и уничтожьте
+          штаб <b>«Консорциума»</b>.
+        </p>
+        <div class="panel-title">Дислокация</div>
+        <div class="diff" id="diff">
+          <button data-diff="easy"><b>Учебная</b><span>Противник осторожен</span></button>
+          <button data-diff="normal" class="on"><b>Боевая</b><span>Равные силы</span></button>
+          <button data-diff="hard"><b>Критическая</b><span>Давление с первых минут</span></button>
+        </div>
+      </div>
+
+      <div class="menu-col">
+        <div class="panel-title">Управление</div>
+        <ul class="keys">
+          <li><kbd>ЛКМ</kbd><span>выбор, рамка выделения</span></li>
+          <li><kbd>ПКМ</kbd><span>идти / атаковать цель</span></li>
+          <li><kbd style="color:var(--brass);border-color:var(--brass)">V</kbd><span style="color:var(--brass);font-weight:600">ручной режим / вид от 1-го лица</span></li>
+          <li><kbd>Z</kbd><kbd>X</kbd><kbd>C</kbd><span>авиаудар, артобстрел, дым</span></li>
+          <li><kbd>A</kbd> + <kbd>ЛКМ</kbd><span>атака по площади</span></li>
+          <li><kbd>WASD</kbd> / <kbd>↑↓←→</kbd><span>камера (RTS) / ход (FPS)</span></li>
+          <li><kbd>Q</kbd><kbd>E</kbd><span>поворот камеры</span></li>
+          <li><kbd>Колесо</kbd><span>приближение / прицел</span></li>
+          <li><kbd>1…9</kbd><span>группы / оружие в FPS</span></li>
+          <li><kbd>F</kbd><span>сбор</span> <kbd>S</kbd><span>стоп</span> <kbd>H</kbd><span>оборона</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <button id="start-btn" class="menu-start">Начать операцию<span>ENTER</span></button>
+    <div class="menu-foot">
+      <span class="badge" style="color:var(--brass);border-color:var(--brass)">V</span> ручной контроль от 1-го лица ·
+      <span class="badge">Z / X / C</span> поддержка ставки ·
+      <span class="badge">ESC</span> снять выбор ·
+      <span class="badge">ПКМ</span> приказ
+    </div>
+    <div class="menu-legal">Вымышленный конфликт. Все совпадения случайны. Всё сгенерировано процедурно, звук синтезируется в браузере.</div>
+  </div>
+</div>
+
+<!-- ======================= PAUSE / END / HELP ======================= -->
+<div id="overlay" class="hidden">
+  <div class="ov-card" id="ov-card"></div>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="js/util.js"></script>
+<script src="js/audio.js"></script><script src="js/terrain.js"></script>
+<script src="js/models.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/effects.js"></script>
+<script src="js/path.js"></script>
+<script src="js/units.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/camera.js"></script>
+<script src="js/fps.js"></script>
+<script src="js/input.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+<script src="js/test.js"></script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+# Operating System Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# Editor directories and files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temporary files
+*.tmp
+*.log
+__pycache__/
+*.pyc
+
+# Local screenshots/tests
+screen_*.png
+preview.png
+game_screen.png
